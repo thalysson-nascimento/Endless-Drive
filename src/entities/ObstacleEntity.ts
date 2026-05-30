@@ -1,16 +1,16 @@
 import {
   Color3,
-  Mesh,
   MeshBuilder,
   Scene,
   StandardMaterial,
+  TransformNode,
 } from "@babylonjs/core";
 
 import type { SpeedSystem } from "../systems/SpeedSystem";
 import { BaseEntity } from "./BaseEntity";
 
 export class ObstacleEntity extends BaseEntity {
-  private mesh?: Mesh;
+  private root?: TransformNode;
   private currentLane = 1;
   private active = true;
   private readonly lanePositions = [-2, 0, 2];
@@ -23,59 +23,76 @@ export class ObstacleEntity extends BaseEntity {
   }
 
   public create(): void {
-    this.mesh = MeshBuilder.CreateBox(
-      "obstacle",
-      {
-        width: 1,
-        height: 1,
-        depth: 1,
-      },
-      this.scene,
-    );
-
-    this.mesh.position.y = 0.5;
+    this.root = new TransformNode("obstacleRoot", this.scene);
 
     const material = new StandardMaterial("obstacleMaterial", this.scene);
 
     material.diffuseColor = Color3.Red();
 
-    this.mesh.material = material;
+    const body = MeshBuilder.CreateBox(
+      "obstacleBody",
+      {
+        width: 1.4,
+        height: 0.5,
+        depth: 2.5,
+      },
+      this.scene,
+    );
 
-    // pista central
+    body.material = material;
+
+    body.position.y = 0.5;
+
+    body.parent = this.root;
+
+    const cabin = MeshBuilder.CreateBox(
+      "obstacleCabin",
+      {
+        width: 1,
+        height: 0.5,
+        depth: 1.2,
+      },
+      this.scene,
+    );
+
+    cabin.material = material;
+
+    cabin.position.y = 1;
+
+    cabin.position.z = -0.2;
+
+    cabin.parent = this.root;
+
     this.currentLane = this.randomLane();
 
-    this.mesh.position.x = this.lanePositions[this.currentLane];
-    // alguns metros à frente do carro
-    this.mesh.position.z = 15;
+    this.root.position.x = this.lanePositions[this.currentLane];
+
+    this.root.position.z = 15;
   }
 
   public update(deltaTime: number): void {
-    if (!this.mesh) {
+    if (!this.root) {
       return;
     }
 
-    this.mesh.position.z -= this.speedSystem.getSpeed() * deltaTime;
+    this.root.position.z -= this.speedSystem.getSpeed() * deltaTime;
 
-    if (this.mesh.position.z < -10) {
+    if (this.root.position.z < -10) {
       this.active = false;
       this.dispose();
-
-      // this.currentLane = this.randomLane();
-
-      // this.mesh.position.x = this.lanePositions[this.currentLane];
     }
   }
 
   public dispose(): void {
-    this.mesh?.dispose();
+    this.root?.dispose();
   }
 
   public getPosition() {
-    if (!this.mesh) {
+    if (!this.root) {
       throw new Error("Obstacle mesh não criada");
     }
 
-    return this.mesh.position;
+    return this.root.position;
   }
 
   public getCurrentLane(): number {
@@ -83,21 +100,21 @@ export class ObstacleEntity extends BaseEntity {
   }
 
   public setLane(lane: number): void {
-    if (!this.mesh) {
+    if (!this.root) {
       return;
     }
 
     this.currentLane = lane;
 
-    this.mesh.position.x = this.lanePositions[lane];
+    this.root.position.x = this.lanePositions[lane];
   }
 
   public setPositionZ(z: number): void {
-    if (!this.mesh) {
+    if (!this.root) {
       return;
     }
 
-    this.mesh.position.z = z;
+    this.root.position.z = z;
   }
 
   isActive(): boolean {

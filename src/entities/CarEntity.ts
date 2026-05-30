@@ -1,24 +1,58 @@
-import { Mesh, MeshBuilder, Vector3 } from "@babylonjs/core";
+import {
+  Color3,
+  MeshBuilder,
+  StandardMaterial,
+  TransformNode,
+  Vector3,
+} from "@babylonjs/core";
 
 import { BaseEntity } from "./BaseEntity";
 
 export class CarEntity extends BaseEntity {
-  private mesh?: Mesh;
+  private root?: TransformNode;
   private currentLane = 1;
   private readonly lanePositions = [-2, 0, 2];
 
   public create(): void {
-    this.mesh = MeshBuilder.CreateBox(
-      "car",
+    this.root = new TransformNode("carRoot", this.scene);
+
+    const material = new StandardMaterial("carMaterial", this.scene);
+
+    material.diffuseColor = Color3.Blue();
+
+    const body = MeshBuilder.CreateBox(
+      "carBody",
       {
-        width: 1,
-        height: 1,
-        depth: 2,
+        width: 1.4,
+        height: 0.5,
+        depth: 2.5,
       },
       this.scene,
     );
 
-    this.mesh.position.y = 0.5;
+    body.material = material;
+
+    body.position.y = 0.5;
+
+    body.parent = this.root;
+
+    const cabin = MeshBuilder.CreateBox(
+      "carCabin",
+      {
+        width: 1,
+        height: 0.5,
+        depth: 1.2,
+      },
+      this.scene,
+    );
+
+    cabin.material = material;
+
+    cabin.position.y = 1;
+
+    cabin.position.z = -0.2;
+
+    cabin.parent = this.root;
 
     this.updateLanePosition();
   }
@@ -26,7 +60,7 @@ export class CarEntity extends BaseEntity {
   public update(_deltaTime: number): void {}
 
   public dispose(): void {
-    this.mesh?.dispose();
+    this.root?.dispose();
   }
 
   public moveLeft(): void {
@@ -50,11 +84,11 @@ export class CarEntity extends BaseEntity {
   }
 
   public getPosition(): Vector3 {
-    if (!this.mesh) {
+    if (!this.root) {
       return Vector3.Zero();
     }
 
-    return this.mesh.position;
+    return this.root.position;
   }
 
   public getCurrentLane(): number {
@@ -62,11 +96,11 @@ export class CarEntity extends BaseEntity {
   }
 
   private updateLanePosition(): void {
-    if (!this.mesh) {
+    if (!this.root) {
       return;
     }
 
-    this.mesh.position.x = this.lanePositions[this.currentLane];
-    console.log("Lane:", this.currentLane, "X:", this.mesh.position.x);
+    this.root.position.x = this.lanePositions[this.currentLane];
+    console.log("Lane:", this.currentLane, "X:", this.root.position.x);
   }
 }
