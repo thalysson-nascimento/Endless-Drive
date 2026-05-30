@@ -2,10 +2,10 @@ import { Engine, HemisphericLight, Scene, Vector3 } from "@babylonjs/core";
 
 import { CameraController } from "../controllers/CameraController";
 import { CarEntity } from "../entities/CarEntity";
-import { ObstacleEntity } from "../entities/ObstacleEntity";
 import { RoadEntity } from "../entities/RoadEntity";
 import type { Updatable } from "../interfaces/Updatable";
 import { GameStateManager } from "../managers/GameStateManager";
+import { SpawnSystem } from "../systems/SpawnSystem";
 import { GameState } from "../types/GameState";
 import { BaseScene } from "./BaseScene";
 
@@ -15,7 +15,8 @@ export class RaceScene extends BaseScene {
   private car?: CarEntity;
   private road?: RoadEntity;
   private cameraController?: CameraController;
-  private obstacle?: ObstacleEntity;
+  // private obstacle?: ObstacleEntity;
+  private spawnSystem?: SpawnSystem;
   private readonly engine: Engine;
   private readonly updatables: Updatable[] = [];
   private readonly gameStateManager = new GameStateManager();
@@ -78,11 +79,15 @@ export class RaceScene extends BaseScene {
 
     this.updatables.push(this.cameraController);
 
-    this.obstacle = new ObstacleEntity(this.scene);
+    // this.obstacle = new ObstacleEntity(this.scene);
 
-    this.obstacle.create();
+    // this.obstacle.create();
 
-    this.updatables.push(this.obstacle);
+    // this.updatables.push(this.obstacle);
+
+    this.spawnSystem = new SpawnSystem(this.scene);
+
+    this.updatables.push(this.spawnSystem);
   }
 
   public update(deltaTime: number): void {
@@ -111,21 +116,26 @@ export class RaceScene extends BaseScene {
       return;
     }
 
-    if (!this.obstacle) {
+    if (!this.spawnSystem) {
       return;
     }
 
-    const sameLane =
-      this.car.getCurrentLane() === this.obstacle.getCurrentLane();
+    const obstacles = this.spawnSystem.getObstacles();
 
-    const obstacleZ = this.obstacle.getPosition().z;
+    for (const obstacle of obstacles) {
+      const sameLane = this.car.getCurrentLane() === obstacle.getCurrentLane();
 
-    const collision = sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
+      const obstacleZ = obstacle.getPosition().z;
 
-    if (collision) {
-      console.log("GAME OVER");
+      const collision = sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
 
-      this.gameStateManager.setState(GameState.GAME_OVER);
+      if (collision) {
+        console.log("GAME OVER");
+
+        this.gameStateManager.setState(GameState.GAME_OVER);
+
+        return;
+      }
     }
   }
 }

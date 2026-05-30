@@ -5,6 +5,7 @@ import { BaseEntity } from "./BaseEntity";
 export class ObstacleEntity extends BaseEntity {
   private mesh?: Mesh;
   private currentLane = 1;
+  private active = true;
   private readonly speed = 15;
   private readonly lanePositions = [-2, 0, 2];
 
@@ -43,7 +44,8 @@ export class ObstacleEntity extends BaseEntity {
     this.mesh.position.z -= this.speed * deltaTime;
 
     if (this.mesh.position.z < -10) {
-      this.mesh.position.z = 30;
+      this.active = false;
+      this.dispose();
 
       this.currentLane = this.randomLane();
 
@@ -65,6 +67,28 @@ export class ObstacleEntity extends BaseEntity {
 
   public getCurrentLane(): number {
     return this.currentLane;
+  }
+
+  public setLane(lane: number): void {
+    if (!this.mesh) {
+      return;
+    }
+
+    this.currentLane = lane;
+
+    this.mesh.position.x = this.lanePositions[lane];
+  }
+
+  public setPositionZ(z: number): void {
+    if (!this.mesh) {
+      return;
+    }
+
+    this.mesh.position.z = z;
+  }
+
+  isActive(): boolean {
+    return this.active;
   }
 
   private randomLane(): number {
