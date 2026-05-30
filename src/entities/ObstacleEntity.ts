@@ -4,11 +4,11 @@ import { BaseEntity } from "./BaseEntity";
 
 export class ObstacleEntity extends BaseEntity {
   private mesh?: Mesh;
+  private currentLane = 1;
   private readonly speed = 15;
   private readonly lanePositions = [-2, 0, 2];
-  private currentLane = 1;
 
-  create(): void {
+  public create(): void {
     this.mesh = MeshBuilder.CreateBox(
       "obstacle",
       {
@@ -35,7 +35,7 @@ export class ObstacleEntity extends BaseEntity {
     this.mesh.position.z = 15;
   }
 
-  update(deltaTime: number): void {
+  public update(deltaTime: number): void {
     if (!this.mesh) {
       return;
     }
@@ -51,11 +51,11 @@ export class ObstacleEntity extends BaseEntity {
     }
   }
 
-  dispose(): void {
+  public dispose(): void {
     this.mesh?.dispose();
   }
 
-  getPosition() {
+  public getPosition() {
     if (!this.mesh) {
       throw new Error("Obstacle mesh não criada");
     }
@@ -63,7 +63,7 @@ export class ObstacleEntity extends BaseEntity {
     return this.mesh.position;
   }
 
-  getCurrentLane(): number {
+  public getCurrentLane(): number {
     return this.currentLane;
   }
 

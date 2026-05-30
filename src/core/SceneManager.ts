@@ -3,7 +3,7 @@ import { BaseScene } from "../scenes/BaseScene";
 export class SceneManager {
   private currentScene: BaseScene | null = null;
 
-  async changeScene(scene: BaseScene): Promise<void> {
+  public async changeScene(scene: BaseScene): Promise<void> {
     if (this.currentScene) {
       this.currentScene.dispose();
     }
@@ -13,11 +13,11 @@ export class SceneManager {
     await this.currentScene.create();
   }
 
-  update(deltaTime: number): void {
+  public update(deltaTime: number): void {
     this.currentScene?.update(deltaTime);
   }
 
-  getScene(): BaseScene | null {
+  public getScene(): BaseScene | null {
     return this.currentScene;
   }
 }

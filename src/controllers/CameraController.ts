@@ -5,7 +5,6 @@ import type { Updatable } from "../interfaces/Updatable";
 
 export class CameraController implements Updatable {
   private readonly camera: FreeCamera;
-
   private readonly car: CarEntity;
 
   constructor(scene: Scene, car: CarEntity) {
@@ -14,11 +13,11 @@ export class CameraController implements Updatable {
     this.camera = new FreeCamera("camera", new Vector3(0, 6, -12), scene);
   }
 
-  getCamera(): FreeCamera {
+  public getCamera(): FreeCamera {
     return this.camera;
   }
 
-  update(_deltaTime: number): void {
+  public update(_deltaTime: number): void {
     const carPosition = this.car.getPosition();
 
     this.camera.position.x = carPosition.x;

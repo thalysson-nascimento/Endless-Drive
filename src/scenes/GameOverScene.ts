@@ -5,17 +5,19 @@ import { BaseScene } from "./BaseScene";
 export class GameOverScene extends BaseScene {
   public scene: Scene;
 
-  create(): Promise<void> {
+  constructor() {
+    super();
+  }
+
+  public create(): Promise<void> {
     throw new Error("Method not implemented.");
   }
-  update(deltaTime: number): void {
+  public update(deltaTime: number): void {
     console.log("Game Over", deltaTime);
     throw new Error("Method not implemented.");
   }
-  dispose(): void {
+
+  public dispose(): void {
     throw new Error("Method not implemented.");
-  }
-  constructor() {
-    super();
   }
 }

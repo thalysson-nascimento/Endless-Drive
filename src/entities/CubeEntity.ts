@@ -9,7 +9,7 @@ export class CubeEntity extends BaseEntity {
     super(scene);
   }
 
-  create(): void {
+  public create(): void {
     this.mesh = MeshBuilder.CreateBox(
       "cube",
       {
@@ -19,7 +19,7 @@ export class CubeEntity extends BaseEntity {
     );
   }
 
-  update(deltaTime: number): void {
+  public update(deltaTime: number): void {
     if (!this.mesh) {
       return;
     }
@@ -27,7 +27,7 @@ export class CubeEntity extends BaseEntity {
     this.mesh.rotation.y += deltaTime;
   }
 
-  dispose(): void {
+  public dispose(): void {
     this.mesh?.dispose();
   }
 }

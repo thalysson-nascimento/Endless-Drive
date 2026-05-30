@@ -5,6 +5,8 @@ import { CarEntity } from "../entities/CarEntity";
 import { ObstacleEntity } from "../entities/ObstacleEntity";
 import { RoadEntity } from "../entities/RoadEntity";
 import type { Updatable } from "../interfaces/Updatable";
+import { GameStateManager } from "../managers/GameStateManager";
+import { GameState } from "../types/GameState";
 import { BaseScene } from "./BaseScene";
 
 export class RaceScene extends BaseScene {
@@ -12,10 +14,11 @@ export class RaceScene extends BaseScene {
 
   private car?: CarEntity;
   private road?: RoadEntity;
-  private readonly engine: Engine;
-  private readonly updatables: Updatable[] = [];
   private cameraController?: CameraController;
   private obstacle?: ObstacleEntity;
+  private readonly engine: Engine;
+  private readonly updatables: Updatable[] = [];
+  private readonly gameStateManager = new GameStateManager();
 
   private handleKeyDown = (event: KeyboardEvent): void => {
     if (!this.car) {
@@ -44,7 +47,7 @@ export class RaceScene extends BaseScene {
     this.scene = new Scene(this.engine);
   }
 
-  async create(): Promise<void> {
+  public async create(): Promise<void> {
     this.road = new RoadEntity(this.scene);
     this.road.create();
     this.updatables.push(this.road);
@@ -68,7 +71,11 @@ export class RaceScene extends BaseScene {
     this.updatables.push(this.obstacle);
   }
 
-  update(deltaTime: number): void {
+  public update(deltaTime: number): void {
+    if (this.gameStateManager.isGameOver()) {
+      return;
+    }
+
     for (const updatable of this.updatables) {
       updatable.update(deltaTime);
     }
@@ -76,7 +83,7 @@ export class RaceScene extends BaseScene {
     this.checkCollision();
   }
 
-  dispose(): void {
+  public dispose(): void {
     window.removeEventListener("keydown", this.handleKeyDown);
 
     this.car?.dispose();
@@ -102,6 +109,8 @@ export class RaceScene extends BaseScene {
 
     if (collision) {
       console.log("GAME OVER");
+
+      this.gameStateManager.setState(GameState.GAME_OVER);
     }
   }
 }

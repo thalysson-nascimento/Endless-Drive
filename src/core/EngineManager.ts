@@ -7,7 +7,7 @@ export class EngineManager {
     this.engine = new Engine(canvas, true);
   }
 
-  resize(): void {
+  public resize(): void {
     this.engine.resize();
   }
 }

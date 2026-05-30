@@ -5,16 +5,19 @@ import { BaseScene } from "./BaseScene";
 export class MenuScene extends BaseScene {
   public scene: Scene;
 
-  create(): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
-  update(_deltaTime: number): void {
-    throw new Error("Method not implemented.");
-  }
-  dispose(): void {
-    throw new Error("Method not implemented.");
-  }
   constructor() {
     super();
+  }
+
+  public create(): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  public update(_deltaTime: number): void {
+    throw new Error("Method not implemented.");
+  }
+
+  public dispose(): void {
+    throw new Error("Method not implemented.");
   }
 }

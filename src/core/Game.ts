@@ -16,7 +16,7 @@ export class Game {
     this.assetManager = new AssetManager();
   }
 
-  async start(): Promise<void> {
+  public async start(): Promise<void> {
     await this.assetManager.load();
 
     await this.sceneManager.changeScene(
