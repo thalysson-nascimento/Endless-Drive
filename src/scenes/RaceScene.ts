@@ -5,7 +5,9 @@ import { CarEntity } from "../entities/CarEntity";
 import { RoadEntity } from "../entities/RoadEntity";
 import type { Updatable } from "../interfaces/Updatable";
 import { GameStateManager } from "../managers/GameStateManager";
+import { ScoreSystem } from "../systems/ScoreSystem";
 import { SpawnSystem } from "../systems/SpawnSystem";
+import { SpeedSystem } from "../systems/SpeedSystem";
 import { GameState } from "../types/GameState";
 import { BaseScene } from "./BaseScene";
 
@@ -16,9 +18,11 @@ export class RaceScene extends BaseScene {
   private road?: RoadEntity;
   private cameraController?: CameraController;
   // private obstacle?: ObstacleEntity;
+  private scoreSystem?: ScoreSystem;
   private spawnSystem?: SpawnSystem;
   private readonly engine: Engine;
   private readonly updatables: Updatable[] = [];
+  private readonly speedSystem = new SpeedSystem();
   private readonly gameStateManager = new GameStateManager();
 
   private handleKeyDown = (event: KeyboardEvent): void => {
@@ -61,7 +65,7 @@ export class RaceScene extends BaseScene {
   }
 
   public async create(): Promise<void> {
-    this.road = new RoadEntity(this.scene);
+    this.road = new RoadEntity(this.scene, this.speedSystem);
     this.road.create();
     this.updatables.push(this.road);
 
@@ -85,9 +89,13 @@ export class RaceScene extends BaseScene {
 
     // this.updatables.push(this.obstacle);
 
-    this.spawnSystem = new SpawnSystem(this.scene);
+    this.spawnSystem = new SpawnSystem(this.scene, this.speedSystem);
 
     this.updatables.push(this.spawnSystem);
+
+    this.scoreSystem = new ScoreSystem();
+
+    this.updatables.push(this.scoreSystem);
   }
 
   public update(deltaTime: number): void {
@@ -100,6 +108,14 @@ export class RaceScene extends BaseScene {
     }
 
     this.checkCollision();
+
+    if (this.scoreSystem) {
+      const score = this.scoreSystem.getScore();
+
+      this.speedSystem.setSpeed(15 + score * 0.5);
+
+      console.log("Speed:", this.speedSystem.getSpeed());
+    }
   }
 
   public dispose(): void {

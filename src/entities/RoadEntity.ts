@@ -1,12 +1,19 @@
-import { Mesh, MeshBuilder, Vector3 } from "@babylonjs/core";
+import { Mesh, MeshBuilder, Scene, Vector3 } from "@babylonjs/core";
 
+import type { SpeedSystem } from "../systems/SpeedSystem";
 import { BaseEntity } from "./BaseEntity";
 
 export class RoadEntity extends BaseEntity {
   private segmentA?: Mesh;
   private segmentB?: Mesh;
   private readonly segmentLength = 50;
-  private readonly speed = 15;
+  private readonly speedSystem: SpeedSystem;
+
+  constructor(scene: Scene, speedSystem: SpeedSystem) {
+    super(scene);
+
+    this.speedSystem = speedSystem;
+  }
 
   public create(): void {
     this.segmentA = MeshBuilder.CreateGround(
@@ -48,7 +55,7 @@ export class RoadEntity extends BaseEntity {
       return;
     }
 
-    segment.position.z -= this.speed * deltaTime;
+    segment.position.z -= this.speedSystem.getSpeed() * deltaTime;
 
     if (segment.position.z < -this.segmentLength) {
       segment.position.z += this.segmentLength * 2;

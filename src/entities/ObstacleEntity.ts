@@ -1,13 +1,26 @@
-import { Color3, Mesh, MeshBuilder, StandardMaterial } from "@babylonjs/core";
+import {
+  Color3,
+  Mesh,
+  MeshBuilder,
+  Scene,
+  StandardMaterial,
+} from "@babylonjs/core";
 
+import type { SpeedSystem } from "../systems/SpeedSystem";
 import { BaseEntity } from "./BaseEntity";
 
 export class ObstacleEntity extends BaseEntity {
   private mesh?: Mesh;
   private currentLane = 1;
   private active = true;
-  private readonly speed = 15;
   private readonly lanePositions = [-2, 0, 2];
+  private readonly speedSystem: SpeedSystem;
+
+  constructor(scene: Scene, speedSystem: SpeedSystem) {
+    super(scene);
+
+    this.speedSystem = speedSystem;
+  }
 
   public create(): void {
     this.mesh = MeshBuilder.CreateBox(
@@ -41,15 +54,15 @@ export class ObstacleEntity extends BaseEntity {
       return;
     }
 
-    this.mesh.position.z -= this.speed * deltaTime;
+    this.mesh.position.z -= this.speedSystem.getSpeed() * deltaTime;
 
     if (this.mesh.position.z < -10) {
       this.active = false;
       this.dispose();
 
-      this.currentLane = this.randomLane();
+      // this.currentLane = this.randomLane();
 
-      this.mesh.position.x = this.lanePositions[this.currentLane];
+      // this.mesh.position.x = this.lanePositions[this.currentLane];
     }
   }
 

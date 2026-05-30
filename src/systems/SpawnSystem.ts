@@ -1,5 +1,6 @@
 import type { Scene } from "@babylonjs/core";
 import { ObstacleEntity } from "../entities/ObstacleEntity";
+import type { SpeedSystem } from "./SpeedSystem";
 
 export class SpawnSystem {
   private elapsedTime = 0;
@@ -8,8 +9,11 @@ export class SpawnSystem {
   private readonly spawnZ = 30;
   private readonly minDistanceBetweenObstacles = 10;
 
-  constructor(scene: Scene) {
+  private readonly speedSystem: SpeedSystem;
+
+  constructor(scene: Scene, speedSystem: SpeedSystem) {
     this.scene = scene;
+    this.speedSystem = speedSystem;
   }
 
   public update(deltaTime: number): void {
@@ -33,7 +37,7 @@ export class SpawnSystem {
   }
 
   private spawnObstacle(): void {
-    const obstacle = new ObstacleEntity(this.scene);
+    const obstacle = new ObstacleEntity(this.scene, this.speedSystem);
 
     obstacle.create();
 
