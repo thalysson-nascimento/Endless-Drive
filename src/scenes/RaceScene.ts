@@ -9,6 +9,7 @@ import { ScoreSystem } from "../systems/ScoreSystem";
 import { SpawnSystem } from "../systems/SpawnSystem";
 import { SpeedSystem } from "../systems/SpeedSystem";
 import { GameState } from "../types/GameState";
+import { GameUI } from "../ui/GameUI.ts";
 import { BaseScene } from "./BaseScene";
 
 export class RaceScene extends BaseScene {
@@ -24,6 +25,7 @@ export class RaceScene extends BaseScene {
   private readonly updatables: Updatable[] = [];
   private readonly speedSystem = new SpeedSystem();
   private readonly gameStateManager = new GameStateManager();
+  private readonly gameUI = new GameUI();
 
   private handleKeyDown = (event: KeyboardEvent): void => {
     if (!this.car) {
@@ -112,9 +114,23 @@ export class RaceScene extends BaseScene {
     if (this.scoreSystem) {
       const score = this.scoreSystem.getScore();
 
+      if (this.spawnSystem) {
+        this.spawnSystem.setScore(score);
+      }
+
+      if (this.spawnSystem) {
+        const spawnInterval = Math.max(1.2, 2 - score * 0.02);
+
+        this.spawnSystem.setSpawnInterval(spawnInterval);
+      }
+
       this.speedSystem.setSpeed(15 + score * 0.5);
 
       console.log("Speed:", this.speedSystem.getSpeed());
+    }
+
+    if (this.scoreSystem) {
+      this.gameUI.updateScore(this.scoreSystem.getScore());
     }
   }
 
@@ -149,6 +165,7 @@ export class RaceScene extends BaseScene {
         console.log("GAME OVER");
 
         this.gameStateManager.setState(GameState.GAME_OVER);
+        this.gameUI.showGameOver();
 
         return;
       }
