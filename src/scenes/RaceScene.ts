@@ -1,19 +1,41 @@
-import {
-  ArcRotateCamera,
-  Engine,
-  HemisphericLight,
-  MeshBuilder,
-  Scene,
-  Vector3,
-} from "@babylonjs/core";
+import { Engine, HemisphericLight, Scene, Vector3 } from "@babylonjs/core";
 
+import { CameraController } from "../controllers/CameraController";
+import { CarEntity } from "../entities/CarEntity";
+import { ObstacleEntity } from "../entities/ObstacleEntity";
+import { RoadEntity } from "../entities/RoadEntity";
+import type { Updatable } from "../interfaces/Updatable";
 import { BaseScene } from "./BaseScene";
 
 export class RaceScene extends BaseScene {
   public readonly scene: Scene;
 
-  private box?: ReturnType<typeof MeshBuilder.CreateBox>;
+  private car?: CarEntity;
+  private road?: RoadEntity;
   private readonly engine: Engine;
+  private readonly updatables: Updatable[] = [];
+  private cameraController?: CameraController;
+  private obstacle?: ObstacleEntity;
+
+  private handleKeyDown = (event: KeyboardEvent): void => {
+    if (!this.car) {
+      return;
+    }
+
+    switch (event.key) {
+      case "ArrowLeft":
+      case "a":
+      case "A":
+        this.car.moveLeft();
+        break;
+
+      case "ArrowRight":
+      case "d":
+      case "D":
+        this.car.moveRight();
+        break;
+    }
+  };
 
   constructor(engine: Engine) {
     super();
@@ -23,37 +45,63 @@ export class RaceScene extends BaseScene {
   }
 
   async create(): Promise<void> {
-    const camera = new ArcRotateCamera(
-      "camera",
-      Math.PI / 2,
-      Math.PI / 3,
-      8,
-      Vector3.Zero(),
-      this.scene,
-    );
+    this.road = new RoadEntity(this.scene);
+    this.road.create();
+    this.updatables.push(this.road);
 
-    camera.attachControl(this.engine.getRenderingCanvas(), true);
+    this.car = new CarEntity(this.scene);
+    this.car.create();
+    this.updatables.push(this.car);
 
     new HemisphericLight("light", new Vector3(0, 1, 0), this.scene);
 
-    this.box = MeshBuilder.CreateBox(
-      "box",
-      {
-        size: 2,
-      },
-      this.scene,
-    );
+    window.addEventListener("keydown", this.handleKeyDown);
+
+    this.cameraController = new CameraController(this.scene, this.car);
+
+    this.updatables.push(this.cameraController);
+
+    this.obstacle = new ObstacleEntity(this.scene);
+
+    this.obstacle.create();
+
+    this.updatables.push(this.obstacle);
   }
 
   update(deltaTime: number): void {
-    if (!this.box) {
-      return;
+    for (const updatable of this.updatables) {
+      updatable.update(deltaTime);
     }
 
-    this.box.rotation.y += deltaTime;
+    this.checkCollision();
   }
 
   dispose(): void {
+    window.removeEventListener("keydown", this.handleKeyDown);
+
+    this.car?.dispose();
+
     this.scene.dispose();
+  }
+
+  private checkCollision(): void {
+    if (!this.car) {
+      return;
+    }
+
+    if (!this.obstacle) {
+      return;
+    }
+
+    const sameLane =
+      this.car.getCurrentLane() === this.obstacle.getCurrentLane();
+
+    const obstacleZ = this.obstacle.getPosition().z;
+
+    const collision = sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
+
+    if (collision) {
+      console.log("GAME OVER");
+    }
   }
 }

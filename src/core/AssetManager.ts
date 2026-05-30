@@ -1,5 +1,3 @@
 export class AssetManager {
-  async load(): Promise<void> {
-    console.log("Assets carregados");
-  }
+  async load(): Promise<void> {}
 }
