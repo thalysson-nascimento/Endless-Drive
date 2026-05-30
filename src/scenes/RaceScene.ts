@@ -40,6 +40,18 @@ export class RaceScene extends BaseScene {
     }
   };
 
+  private handleRestart = (event: KeyboardEvent): void => {
+    if (event.key !== "r" && event.key !== "R") {
+      return;
+    }
+
+    if (!this.gameStateManager.isGameOver()) {
+      return;
+    }
+
+    window.location.reload();
+  };
+
   constructor(engine: Engine) {
     super();
 
@@ -59,6 +71,8 @@ export class RaceScene extends BaseScene {
     new HemisphericLight("light", new Vector3(0, 1, 0), this.scene);
 
     window.addEventListener("keydown", this.handleKeyDown);
+
+    window.addEventListener("keydown", this.handleRestart);
 
     this.cameraController = new CameraController(this.scene, this.car);
 
@@ -85,6 +99,7 @@ export class RaceScene extends BaseScene {
 
   public dispose(): void {
     window.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("keydown", this.handleRestart);
 
     this.car?.dispose();
 
