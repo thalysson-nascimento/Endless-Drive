@@ -7,6 +7,7 @@ import type { Updatable } from "../interfaces/Updatable";
 import { GameStateManager } from "../managers/GameStateManager";
 import { CoinSystem } from "../systems/CoinSystem.ts";
 import { CoinWallet } from "../systems/CoinWallet.ts";
+import { HighScoreSystem } from "../systems/HighScoreSystem.ts";
 import { ScoreSystem } from "../systems/ScoreSystem";
 import { SpawnSystem } from "../systems/SpawnSystem";
 import { SpeedSystem } from "../systems/SpeedSystem";
@@ -23,6 +24,7 @@ export class RaceScene extends BaseScene {
   private scoreSystem?: ScoreSystem;
   private spawnSystem?: SpawnSystem;
   private coinSystem?: CoinSystem;
+  private readonly highScoreSystem = new HighScoreSystem();
   private readonly coinWallet = new CoinWallet();
   private readonly engine: Engine;
   private readonly updatables: Updatable[] = [];
@@ -70,35 +72,14 @@ export class RaceScene extends BaseScene {
   }
 
   public async create(): Promise<void> {
-    this.road = new RoadEntity(this.scene, this.speedSystem);
-    this.road.create();
-    this.updatables.push(this.road);
-
-    this.car = new CarEntity(this.scene);
-    this.car.create();
-    this.updatables.push(this.car);
-
-    new HemisphericLight("light", new Vector3(0, 1, 0), this.scene);
-
-    window.addEventListener("keydown", this.handleKeyDown);
-
-    window.addEventListener("keydown", this.handleRestart);
-
-    this.cameraController = new CameraController(this.scene, this.car);
-
-    this.updatables.push(this.cameraController);
-
-    this.spawnSystem = new SpawnSystem(this.scene, this.speedSystem);
-
-    this.updatables.push(this.spawnSystem);
-
-    this.scoreSystem = new ScoreSystem();
-
-    this.updatables.push(this.scoreSystem);
-
-    this.coinSystem = new CoinSystem(this.scene, this.speedSystem);
-
-    this.updatables.push(this.coinSystem);
+    this.createRoad();
+    this.createCar();
+    this.createLight();
+    this.registerEventListeners();
+    this.createCameraController();
+    this.createSpawnSystem();
+    this.createScoreSystem();
+    this.createCoinSystem();
   }
 
   public update(deltaTime: number): void {
@@ -114,6 +95,7 @@ export class RaceScene extends BaseScene {
     this.checkCoinCollision();
 
     this.gameUI.updateCoins(this.coinWallet.getCoins());
+    this.gameUI.updateHighScore(this.highScoreSystem.getHighScore());
 
     if (this.scoreSystem) {
       const score = this.scoreSystem.getScore();
@@ -163,17 +145,67 @@ export class RaceScene extends BaseScene {
 
       const obstacleZ = obstacle.getPosition().z;
 
-      const collision = sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
+      const checkCollisiumGameOver =
+        sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
 
-      if (collision) {
+      if (checkCollisiumGameOver) {
         console.log("GAME OVER");
 
         this.gameStateManager.setState(GameState.GAME_OVER);
         this.gameUI.showGameOver();
 
+        const score = this.scoreSystem?.getScore() ?? 0;
+
+        const isNewRecord = this.highScoreSystem.update(score);
+
+        if (isNewRecord) {
+          console.log("NEW HIGH SCORE!");
+        }
+
         return;
       }
     }
+  }
+
+  private createRoad(): void {
+    this.road = new RoadEntity(this.scene, this.speedSystem);
+    this.road.create();
+    this.updatables.push(this.road);
+  }
+
+  private createCar(): void {
+    this.car = new CarEntity(this.scene);
+    this.car.create();
+    this.updatables.push(this.car);
+  }
+
+  private createLight(): void {
+    new HemisphericLight("light", new Vector3(0, 1, 0), this.scene);
+  }
+
+  private registerEventListeners(): void {
+    window.addEventListener("keydown", this.handleKeyDown);
+    window.addEventListener("keydown", this.handleRestart);
+  }
+
+  private createCameraController(): void {
+    this.cameraController = new CameraController(this.scene, this.car);
+    this.updatables.push(this.cameraController);
+  }
+
+  private createSpawnSystem(): void {
+    this.spawnSystem = new SpawnSystem(this.scene, this.speedSystem);
+    this.updatables.push(this.spawnSystem);
+  }
+
+  private createScoreSystem(): void {
+    this.scoreSystem = new ScoreSystem();
+    this.updatables.push(this.scoreSystem);
+  }
+
+  private createCoinSystem(): void {
+    this.coinSystem = new CoinSystem(this.scene, this.speedSystem);
+    this.updatables.push(this.coinSystem);
   }
 
   private checkCoinCollision(): void {

@@ -1,14 +1,16 @@
 export class GameUI {
+  private coinsElement: HTMLDivElement;
+  private highScoreElement: HTMLDivElement;
   private readonly scoreElement: HTMLDivElement;
   private readonly gameOverElement: HTMLDivElement;
-  private coinsElement: HTMLDivElement;
 
   constructor() {
     this.scoreElement = document.createElement("div");
 
     this.gameOverElement = document.createElement("div");
 
-    this.handleCoinsUI();
+    this.handleElementCoinsUI();
+    this.handlElementHighScoreUI();
 
     this.setup();
   }
@@ -43,7 +45,7 @@ export class GameUI {
     document.body.appendChild(this.gameOverElement);
   }
 
-  public handleCoinsUI() {
+  public handleElementCoinsUI() {
     this.coinsElement = document.createElement("div");
 
     this.coinsElement.style.position = "absolute";
@@ -59,12 +61,32 @@ export class GameUI {
     document.body.appendChild(this.coinsElement);
   }
 
+  public handlElementHighScoreUI() {
+    this.highScoreElement = document.createElement("div");
+
+    this.highScoreElement.style.position = "absolute";
+
+    this.highScoreElement.style.top = "80px";
+
+    this.highScoreElement.style.left = "20px";
+
+    this.highScoreElement.style.color = "cyan";
+
+    this.highScoreElement.style.fontSize = "24px";
+
+    document.body.appendChild(this.highScoreElement);
+  }
+
   public updateScore(score: number): void {
     this.scoreElement.textContent = `Score: ${score}`;
   }
 
   public updateCoins(coins: number): void {
     this.coinsElement.textContent = `Coins: ${coins}`;
+  }
+
+  updateHighScore(score: number): void {
+    this.highScoreElement.textContent = `High Score: ${score}`;
   }
 
   public showGameOver(): void {
