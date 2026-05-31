@@ -7,10 +7,9 @@ export class SpawnSystem {
   private spawnInterval = 2;
   private obstacles: ObstacleEntity[] = [];
   private score = 0;
-  private readonly scene: Scene;
   private readonly spawnZ = 60;
   private readonly minDistanceBetweenObstacles = 10;
-
+  private readonly scene: Scene;
   private readonly speedSystem: SpeedSystem;
 
   constructor(scene: Scene, speedSystem: SpeedSystem) {

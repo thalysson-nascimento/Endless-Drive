@@ -1,11 +1,14 @@
 export class GameUI {
   private readonly scoreElement: HTMLDivElement;
   private readonly gameOverElement: HTMLDivElement;
+  private coinsElement: HTMLDivElement;
 
   constructor() {
     this.scoreElement = document.createElement("div");
 
     this.gameOverElement = document.createElement("div");
+
+    this.handleCoinsUI();
 
     this.setup();
   }
@@ -40,11 +43,31 @@ export class GameUI {
     document.body.appendChild(this.gameOverElement);
   }
 
-  updateScore(score: number): void {
+  public handleCoinsUI() {
+    this.coinsElement = document.createElement("div");
+
+    this.coinsElement.style.position = "absolute";
+
+    this.coinsElement.style.top = "50px";
+
+    this.coinsElement.style.left = "20px";
+
+    this.coinsElement.style.color = "yellow";
+
+    this.coinsElement.style.fontSize = "24px";
+
+    document.body.appendChild(this.coinsElement);
+  }
+
+  public updateScore(score: number): void {
     this.scoreElement.textContent = `Score: ${score}`;
   }
 
-  showGameOver(): void {
+  public updateCoins(coins: number): void {
+    this.coinsElement.textContent = `Coins: ${coins}`;
+  }
+
+  public showGameOver(): void {
     this.gameOverElement.innerHTML = `
       GAME OVER
       <br>

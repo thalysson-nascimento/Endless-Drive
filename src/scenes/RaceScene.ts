@@ -5,6 +5,8 @@ import { CarEntity } from "../entities/CarEntity";
 import { RoadEntity } from "../entities/RoadEntity";
 import type { Updatable } from "../interfaces/Updatable";
 import { GameStateManager } from "../managers/GameStateManager";
+import { CoinSystem } from "../systems/CoinSystem.ts";
+import { CoinWallet } from "../systems/CoinWallet.ts";
 import { ScoreSystem } from "../systems/ScoreSystem";
 import { SpawnSystem } from "../systems/SpawnSystem";
 import { SpeedSystem } from "../systems/SpeedSystem";
@@ -18,9 +20,10 @@ export class RaceScene extends BaseScene {
   private car?: CarEntity;
   private road?: RoadEntity;
   private cameraController?: CameraController;
-  // private obstacle?: ObstacleEntity;
   private scoreSystem?: ScoreSystem;
   private spawnSystem?: SpawnSystem;
+  private coinSystem?: CoinSystem;
+  private readonly coinWallet = new CoinWallet();
   private readonly engine: Engine;
   private readonly updatables: Updatable[] = [];
   private readonly speedSystem = new SpeedSystem();
@@ -85,12 +88,6 @@ export class RaceScene extends BaseScene {
 
     this.updatables.push(this.cameraController);
 
-    // this.obstacle = new ObstacleEntity(this.scene);
-
-    // this.obstacle.create();
-
-    // this.updatables.push(this.obstacle);
-
     this.spawnSystem = new SpawnSystem(this.scene, this.speedSystem);
 
     this.updatables.push(this.spawnSystem);
@@ -98,6 +95,10 @@ export class RaceScene extends BaseScene {
     this.scoreSystem = new ScoreSystem();
 
     this.updatables.push(this.scoreSystem);
+
+    this.coinSystem = new CoinSystem(this.scene, this.speedSystem);
+
+    this.updatables.push(this.coinSystem);
   }
 
   public update(deltaTime: number): void {
@@ -110,6 +111,9 @@ export class RaceScene extends BaseScene {
     }
 
     this.checkCollision();
+    this.checkCoinCollision();
+
+    this.gameUI.updateCoins(this.coinWallet.getCoins());
 
     if (this.scoreSystem) {
       const score = this.scoreSystem.getScore();
@@ -168,6 +172,23 @@ export class RaceScene extends BaseScene {
         this.gameUI.showGameOver();
 
         return;
+      }
+    }
+  }
+
+  private checkCoinCollision(): void {
+    if (!this.car || !this.coinSystem) return;
+
+    for (const coin of this.coinSystem.getCoins()) {
+      const sameLane = this.car.getCurrentLane() === coin.getLane();
+
+      const z = coin.getPosition()?.z ?? 999;
+
+      const collision = sameLane && z <= 1.5 && z >= -1.5;
+
+      if (collision) {
+        coin.collect();
+        this.coinWallet.add(1);
       }
     }
   }
