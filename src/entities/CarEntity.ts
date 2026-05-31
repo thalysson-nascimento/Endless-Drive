@@ -9,6 +9,13 @@ import {
 import { BaseEntity } from "./BaseEntity";
 
 export class CarEntity extends BaseEntity {
+  /**
+   * Centraliza o carro na pista (lane central)
+   */
+  public reset(): void {
+    this.currentLane = 1;
+    this.updateLanePosition();
+  }
   private root?: TransformNode;
   private currentLane = 1;
   private readonly lanePositions = [-2, 0, 2];

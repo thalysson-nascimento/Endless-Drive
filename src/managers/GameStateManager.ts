@@ -1,7 +1,7 @@
 import { GameState } from "../types/GameState";
 
 export class GameStateManager {
-  private currentState: GameState = GameState.PLAYING;
+  private currentState: GameState = GameState.MENU;
 
   public getState(): GameState {
     return this.currentState;
@@ -9,6 +9,10 @@ export class GameStateManager {
 
   public setState(state: GameState): void {
     this.currentState = state;
+  }
+
+  public isMenu(): boolean {
+    return this.currentState === GameState.MENU;
   }
 
   public isPlaying(): boolean {

@@ -24,18 +24,31 @@ export class RaceScene extends BaseScene {
   private scoreSystem?: ScoreSystem;
   private spawnSystem?: SpawnSystem;
   private coinSystem?: CoinSystem;
+
   private readonly highScoreSystem = new HighScoreSystem();
   private readonly coinWallet = new CoinWallet();
+
   private readonly engine: Engine;
   private readonly updatables: Updatable[] = [];
   private readonly speedSystem = new SpeedSystem();
   private readonly gameStateManager = new GameStateManager();
   private readonly gameUI = new GameUI();
 
+  constructor(engine: Engine) {
+    super();
+
+    this.engine = engine;
+    this.scene = new Scene(this.engine);
+  }
+
+  // -------------------------
+  // INPUTS
+  // -------------------------
+
   private handleKeyDown = (event: KeyboardEvent): void => {
-    if (!this.car) {
-      return;
-    }
+    if (!this.car) return;
+
+    if (!this.gameStateManager.isPlaying()) return;
 
     switch (event.key) {
       case "ArrowLeft":
@@ -53,40 +66,61 @@ export class RaceScene extends BaseScene {
   };
 
   private handleRestart = (event: KeyboardEvent): void => {
-    if (event.key !== "r" && event.key !== "R") {
-      return;
-    }
+    if (event.key !== "r" && event.key !== "R") return;
 
-    if (!this.gameStateManager.isGameOver()) {
-      return;
-    }
+    if (!this.gameStateManager.isGameOver()) return;
 
-    window.location.reload();
+    this.resetGame();
   };
 
-  constructor(engine: Engine) {
-    super();
-
-    this.engine = engine;
-    this.scene = new Scene(this.engine);
-  }
+  // -------------------------
+  // CREATE
+  // -------------------------
 
   public async create(): Promise<void> {
+    this.gameStateManager.setState(GameState.MENU);
+
+    this.gameUI.showMenu();
     this.createRoad();
     this.createCar();
     this.createLight();
+
     this.registerEventListeners();
+
     this.createCameraController();
     this.createSpawnSystem();
     this.createScoreSystem();
     this.createCoinSystem();
+
+    this.gameUI.bindMenuEvents(() => {
+      this.startGame();
+    });
+
+    // IMPORTANTE: iniciar em MENU
+    this.gameStateManager.setState(GameState.MENU);
+    this.gameUI.showMenu();
   }
 
+  // -------------------------
+  // UPDATE LOOP
+  // -------------------------
+
   public update(deltaTime: number): void {
-    if (this.gameStateManager.isGameOver()) {
+    // MENU
+    if (this.gameStateManager.isMenu()) {
+      this.gameUI.updateCoins(this.coinWallet.getCoins());
+      this.gameUI.updateHighScore(this.highScoreSystem.getHighScore());
       return;
     }
 
+    // GAME OVER
+    if (this.gameStateManager.isGameOver()) {
+      this.gameUI.updateCoins(this.coinWallet.getCoins());
+      this.gameUI.updateHighScore(this.highScoreSystem.getHighScore());
+      return;
+    }
+
+    // PLAYING
     for (const updatable of this.updatables) {
       updatable.update(deltaTime);
     }
@@ -94,49 +128,71 @@ export class RaceScene extends BaseScene {
     this.checkCollision();
     this.checkCoinCollision();
 
-    this.gameUI.updateCoins(this.coinWallet.getCoins());
-    this.gameUI.updateHighScore(this.highScoreSystem.getHighScore());
-
     if (this.scoreSystem) {
       const score = this.scoreSystem.getScore();
 
+      this.gameUI.updateScore(score);
+
       if (this.spawnSystem) {
         this.spawnSystem.setScore(score);
-      }
 
-      if (this.spawnSystem) {
         const spawnInterval = Math.max(1.2, 2 - score * 0.02);
-
         this.spawnSystem.setSpawnInterval(spawnInterval);
       }
 
       this.speedSystem.setSpeed(15 + score * 0.5);
 
-      console.log("Speed:", this.speedSystem.getSpeed());
+      this.gameUI.updateHighScore(this.highScoreSystem.getHighScore());
     }
 
-    if (this.scoreSystem) {
-      this.gameUI.updateScore(this.scoreSystem.getScore());
+    this.gameUI.updateCoins(this.coinWallet.getCoins());
+  }
+
+  // -------------------------
+  // GAME FLOW
+  // -------------------------
+
+  private startGame(): void {
+    this.gameStateManager.setState(GameState.PLAYING);
+    this.gameUI.hideMenu();
+  }
+
+  private gameOver(): void {
+    this.gameStateManager.setState(GameState.GAME_OVER);
+
+    this.gameUI.showGameOver();
+
+    const score = this.scoreSystem?.getScore() ?? 0;
+
+    const isNewRecord = this.highScoreSystem.update(score);
+
+    if (isNewRecord) {
+      console.log("NEW HIGH SCORE!");
     }
   }
 
-  public dispose(): void {
-    window.removeEventListener("keydown", this.handleKeyDown);
-    window.removeEventListener("keydown", this.handleRestart);
+  private resetGame(): void {
+    this.gameStateManager.setState(GameState.MENU);
 
-    this.car?.dispose();
+    this.gameUI.showMenu();
 
-    this.scene.dispose();
+    this.scoreSystem?.reset?.();
+    this.spawnSystem?.reset?.();
+    this.coinSystem?.reset?.();
+
+    this.speedSystem.setSpeed(15);
+
+    // Centraliza o carro e a câmera na pista ao resetar
+    this.car?.reset();
+    this.cameraController?.reset();
   }
+
+  // -------------------------
+  // COLLISIONS
+  // -------------------------
 
   private checkCollision(): void {
-    if (!this.car) {
-      return;
-    }
-
-    if (!this.spawnSystem) {
-      return;
-    }
+    if (!this.car || !this.spawnSystem) return;
 
     const obstacles = this.spawnSystem.getObstacles();
 
@@ -145,27 +201,35 @@ export class RaceScene extends BaseScene {
 
       const obstacleZ = obstacle.getPosition().z;
 
-      const checkCollisiumGameOver =
-        sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
+      const collision = sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
 
-      if (checkCollisiumGameOver) {
-        console.log("GAME OVER");
-
-        this.gameStateManager.setState(GameState.GAME_OVER);
-        this.gameUI.showGameOver();
-
-        const score = this.scoreSystem?.getScore() ?? 0;
-
-        const isNewRecord = this.highScoreSystem.update(score);
-
-        if (isNewRecord) {
-          console.log("NEW HIGH SCORE!");
-        }
-
+      if (collision) {
+        this.gameOver();
         return;
       }
     }
   }
+
+  private checkCoinCollision(): void {
+    if (!this.car || !this.coinSystem) return;
+
+    for (const coin of this.coinSystem.getCoins()) {
+      const sameLane = this.car.getCurrentLane() === coin.getLane();
+
+      const z = coin.getPosition()?.z ?? 999;
+
+      const collision = sameLane && z <= 1.5 && z >= -1.5;
+
+      if (collision) {
+        coin.collect();
+        this.coinWallet.add(1);
+      }
+    }
+  }
+
+  // -------------------------
+  // SETUP HELPERS
+  // -------------------------
 
   private createRoad(): void {
     this.road = new RoadEntity(this.scene, this.speedSystem);
@@ -190,11 +254,13 @@ export class RaceScene extends BaseScene {
 
   private createCameraController(): void {
     this.cameraController = new CameraController(this.scene, this.car);
+
     this.updatables.push(this.cameraController);
   }
 
   private createSpawnSystem(): void {
     this.spawnSystem = new SpawnSystem(this.scene, this.speedSystem);
+
     this.updatables.push(this.spawnSystem);
   }
 
@@ -205,23 +271,19 @@ export class RaceScene extends BaseScene {
 
   private createCoinSystem(): void {
     this.coinSystem = new CoinSystem(this.scene, this.speedSystem);
+
     this.updatables.push(this.coinSystem);
   }
 
-  private checkCoinCollision(): void {
-    if (!this.car || !this.coinSystem) return;
+  // -------------------------
+  // CLEANUP
+  // -------------------------
 
-    for (const coin of this.coinSystem.getCoins()) {
-      const sameLane = this.car.getCurrentLane() === coin.getLane();
+  public dispose(): void {
+    window.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("keydown", this.handleRestart);
 
-      const z = coin.getPosition()?.z ?? 999;
-
-      const collision = sameLane && z <= 1.5 && z >= -1.5;
-
-      if (collision) {
-        coin.collect();
-        this.coinWallet.add(1);
-      }
-    }
+    this.car?.dispose();
+    this.scene.dispose();
   }
 }

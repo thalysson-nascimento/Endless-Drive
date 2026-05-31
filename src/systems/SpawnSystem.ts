@@ -57,6 +57,16 @@ export class SpawnSystem {
     this.score = score;
   }
 
+  public reset(): void {
+    for (const obstacle of this.obstacles) {
+      obstacle.dispose();
+    }
+
+    this.obstacles = [];
+
+    this.spawnInterval = 2;
+  }
+
   private createObstacle(lane: number, z: number): void {
     const obstacle = new ObstacleEntity(this.scene, this.speedSystem);
 

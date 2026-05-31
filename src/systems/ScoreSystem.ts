@@ -5,7 +5,7 @@ export class ScoreSystem implements Updatable {
 
   private elapsedTime = 0;
 
-  update(deltaTime: number): void {
+  public update(deltaTime: number): void {
     this.elapsedTime += deltaTime;
 
     if (this.elapsedTime >= 1) {
@@ -17,7 +17,12 @@ export class ScoreSystem implements Updatable {
     }
   }
 
-  getScore(): number {
+  public getScore(): number {
     return this.score;
+  }
+
+  public reset(): void {
+    this.score = 0;
+    this.elapsedTime = 0;
   }
 }

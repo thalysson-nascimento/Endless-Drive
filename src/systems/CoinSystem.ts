@@ -14,7 +14,20 @@ export class CoinSystem {
     this.speedSystem = speedSystem;
   }
 
-  update(deltaTime: number): void {
+  public getCoins(): CoinEntity[] {
+    return this.coins;
+  }
+
+  public reset(): void {
+    for (const coin of this.coins) {
+      coin.dispose();
+    }
+
+    this.coins = [];
+    this.spawnInterval = 3;
+  }
+
+  public update(deltaTime: number): void {
     this.elapsedTime += deltaTime;
 
     if (this.elapsedTime >= this.spawnInterval) {
@@ -35,9 +48,5 @@ export class CoinSystem {
     coin.create();
 
     this.coins.push(coin);
-  }
-
-  getCoins(): CoinEntity[] {
-    return this.coins;
   }
 }

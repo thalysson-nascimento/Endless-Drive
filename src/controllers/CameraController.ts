@@ -26,4 +26,9 @@ export class CameraController implements Updatable {
       new Vector3(carPosition.x, carPosition.y, carPosition.z + 10),
     );
   }
+
+  public reset(): void {
+    this.camera.position.x = 0;
+    this.camera.setTarget(new Vector3(0, 0, 10));
+  }
 }
