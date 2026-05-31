@@ -1,5 +1,7 @@
 import { Engine, HemisphericLight, Scene, Vector3 } from "@babylonjs/core";
 
+import { SceneLoader } from "@babylonjs/core";
+import "@babylonjs/loaders";
 import { CameraController } from "../controllers/CameraController";
 import { CarEntity } from "../entities/CarEntity";
 import { RoadEntity } from "../entities/RoadEntity";
@@ -84,6 +86,8 @@ export class RaceScene extends BaseScene {
     this.createRoad();
     this.createCar();
     this.createLight();
+
+    await this.loadTestBuilding();
 
     this.registerEventListeners();
 
@@ -275,15 +279,36 @@ export class RaceScene extends BaseScene {
     this.updatables.push(this.coinSystem);
   }
 
-  // -------------------------
-  // CLEANUP
-  // -------------------------
-
   public dispose(): void {
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("keydown", this.handleRestart);
 
     this.car?.dispose();
     this.scene.dispose();
+  }
+
+  private async loadTestBuilding(): Promise<void> {
+    try {
+      const result = await SceneLoader.ImportMeshAsync(
+        "",
+        "/models/",
+        "building-type-a.glb",
+        this.scene,
+      );
+
+      result.meshes.forEach((mesh, index) => {
+        console.log(index, mesh.name, "vertices:", mesh.getTotalVertices());
+      });
+
+      const building = result.meshes[1];
+
+      building.position = new Vector3(-10, 1, 20);
+
+      building.scaling = new Vector3(6, 6, 6);
+
+      building.rotate(Vector3.Up(), Math.PI / -2);
+    } catch (error) {
+      console.error(error);
+    }
   }
 }

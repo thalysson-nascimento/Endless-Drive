@@ -25,7 +25,11 @@ export class CarEntity extends BaseEntity {
 
     const material = new StandardMaterial("carMaterial", this.scene);
 
-    material.diffuseColor = Color3.Blue();
+    material.diffuseColor = new Color3(0.1, 0.3, 1);
+
+    material.specularColor = Color3.White();
+
+    material.specularPower = 64;
 
     const body = MeshBuilder.CreateBox(
       "carBody",

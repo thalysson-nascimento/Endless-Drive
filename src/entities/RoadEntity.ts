@@ -11,14 +11,14 @@ import type { SpeedSystem } from "../systems/SpeedSystem";
 import { BaseEntity } from "./BaseEntity";
 
 export class RoadEntity extends BaseEntity {
-  private segmentA?: Mesh;
-  private segmentB?: Mesh;
-  private laneA1?: Mesh;
-  private laneA2?: Mesh;
-  private laneB1?: Mesh;
-  private laneB2?: Mesh;
   private readonly segmentLength = 50;
+  private readonly segmentCount = 3;
+
   private readonly speedSystem: SpeedSystem;
+
+  private roadSegments: Mesh[] = [];
+  private grassSegments: Mesh[] = [];
+  private laneMarkers: Mesh[] = [];
 
   constructor(scene: Scene, speedSystem: SpeedSystem) {
     super(scene);
@@ -27,95 +27,142 @@ export class RoadEntity extends BaseEntity {
   }
 
   public create(): void {
-    this.segmentA = MeshBuilder.CreateGround(
-      "roadA",
-      {
-        width: 8,
-        height: this.segmentLength,
-      },
-      this.scene,
-    );
+    const roadMaterial = new StandardMaterial("roadMaterial", this.scene);
 
-    this.segmentB = MeshBuilder.CreateGround(
-      "roadB",
-      {
-        width: 8,
-        height: this.segmentLength,
-      },
-      this.scene,
-    );
+    roadMaterial.diffuseColor = new Color3(0.15, 0.15, 0.15);
 
-    this.segmentA.position = new Vector3(0, 0, 0);
+    const grassMaterial = new StandardMaterial("grassMaterial", this.scene);
 
-    this.segmentB.position = new Vector3(0, 0, this.segmentLength);
+    grassMaterial.diffuseColor = new Color3(0.1, 0.5, 0.1);
 
     const laneMaterial = new StandardMaterial("laneMaterial", this.scene);
 
     laneMaterial.diffuseColor = Color3.White();
 
-    this.laneA1 = this.createLaneMarker("laneA1");
+    for (let i = 0; i < this.segmentCount; i++) {
+      const zPosition = i * this.segmentLength;
 
-    this.laneA2 = this.createLaneMarker("laneA2");
+      // -------------------------
+      // ROAD
+      // -------------------------
 
-    this.laneB1 = this.createLaneMarker("laneB1");
+      const road = MeshBuilder.CreateGround(
+        `road_${i}`,
+        {
+          width: 10,
+          height: this.segmentLength,
+        },
+        this.scene,
+      );
 
-    this.laneB2 = this.createLaneMarker("laneB2");
+      road.material = roadMaterial;
 
-    this.laneA1.material = laneMaterial;
+      road.position = new Vector3(0, 0, zPosition);
 
-    this.laneA2.material = laneMaterial;
+      this.roadSegments.push(road);
 
-    this.laneB1.material = laneMaterial;
+      // -------------------------
+      // GRASS LEFT
+      // -------------------------
 
-    this.laneB2.material = laneMaterial;
+      const grassLeft = MeshBuilder.CreateGround(
+        `grassLeft_${i}`,
+        {
+          width: 20,
+          height: this.segmentLength,
+        },
+        this.scene,
+      );
 
-    this.laneA1.position = new Vector3(-1, 0.03, 0);
+      grassLeft.material = grassMaterial;
 
-    this.laneA2.position = new Vector3(1, 0.03, 0);
+      grassLeft.position = new Vector3(-15, -0.01, zPosition);
 
-    this.laneB1.position = new Vector3(-1, 0.03, this.segmentLength);
+      this.grassSegments.push(grassLeft);
 
-    this.laneB2.position = new Vector3(1, 0.03, this.segmentLength);
+      // -------------------------
+      // GRASS RIGHT
+      // -------------------------
+
+      const grassRight = MeshBuilder.CreateGround(
+        `grassRight_${i}`,
+        {
+          width: 20,
+          height: this.segmentLength,
+        },
+        this.scene,
+      );
+
+      grassRight.material = grassMaterial;
+
+      grassRight.position = new Vector3(15, -0.01, zPosition);
+
+      this.grassSegments.push(grassRight);
+
+      // -------------------------
+      // LINHAS DA PISTA
+      // -------------------------
+
+      const leftLane = this.createLaneMarker(`leftLane_${i}`);
+
+      leftLane.material = laneMaterial;
+
+      leftLane.position = new Vector3(-1, 0.03, zPosition);
+
+      this.laneMarkers.push(leftLane);
+
+      const rightLane = this.createLaneMarker(`rightLane_${i}`);
+
+      rightLane.material = laneMaterial;
+
+      rightLane.position = new Vector3(1, 0.03, zPosition);
+
+      this.laneMarkers.push(rightLane);
+    }
   }
+
   public update(deltaTime: number): void {
-    this.moveSegment(this.segmentA, deltaTime);
+    for (const road of this.roadSegments) {
+      this.moveSegment(road, deltaTime);
+    }
 
-    this.moveSegment(this.segmentB, deltaTime);
+    for (const grass of this.grassSegments) {
+      this.moveSegment(grass, deltaTime);
+    }
 
-    this.moveSegment(this.laneA1, deltaTime);
-
-    this.moveSegment(this.laneA2, deltaTime);
-
-    this.moveSegment(this.laneB1, deltaTime);
-
-    this.moveSegment(this.laneB2, deltaTime);
+    for (const lane of this.laneMarkers) {
+      this.moveSegment(lane, deltaTime);
+    }
   }
 
   public dispose(): void {
-    this.segmentA?.dispose();
-    this.segmentB?.dispose();
-
-    this.laneA1?.dispose();
-    this.laneA2?.dispose();
-
-    this.laneB1?.dispose();
-    this.laneB2?.dispose();
-  }
-
-  private moveSegment(segment: Mesh | undefined, deltaTime: number): void {
-    if (!segment) {
-      return;
+    for (const road of this.roadSegments) {
+      road.dispose();
     }
 
+    for (const grass of this.grassSegments) {
+      grass.dispose();
+    }
+
+    for (const lane of this.laneMarkers) {
+      lane.dispose();
+    }
+
+    this.roadSegments = [];
+    this.grassSegments = [];
+    this.laneMarkers = [];
+  }
+
+  private moveSegment(segment: Mesh, deltaTime: number): void {
     segment.position.z -= this.speedSystem.getSpeed() * deltaTime;
 
     if (segment.position.z < -this.segmentLength) {
-      segment.position.z += this.segmentLength * 2;
+      segment.position.z += this.segmentLength * this.segmentCount;
     }
   }
 
   private createLaneMarker(name: string): Mesh {
-    const marker = MeshBuilder.CreateBox(
+    return MeshBuilder.CreateBox(
       name,
       {
         width: 0.1,
@@ -124,7 +171,5 @@ export class RoadEntity extends BaseEntity {
       },
       this.scene,
     );
-
-    return marker;
   }
 }
