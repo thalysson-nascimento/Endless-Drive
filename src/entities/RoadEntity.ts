@@ -4,172 +4,190 @@ import {
   MeshBuilder,
   Scene,
   StandardMaterial,
-  Vector3,
 } from "@babylonjs/core";
-
 import type { SpeedSystem } from "../systems/SpeedSystem";
 import { BaseEntity } from "./BaseEntity";
 
 export class RoadEntity extends BaseEntity {
-  private readonly segmentLength = 50;
-  private readonly segmentCount = 3;
-
   private readonly speedSystem: SpeedSystem;
 
-  private roadSegments: Mesh[] = [];
-  private grassSegments: Mesh[] = [];
-  private laneMarkers: Mesh[] = [];
+  // Gerenciamento de segmentos da estrada infinita
+  private segments: Mesh[] = [];
+  private readonly segmentLength = 40; // Comprimento de cada bloco de estrada
+  private readonly totalSegments = 4; // Blocos ativos na tela ao mesmo tempo
+  private readonly roadWidth = 7.0; // Largura utilizável para as 3 pistas
 
   constructor(scene: Scene, speedSystem: SpeedSystem) {
     super(scene);
-
     this.speedSystem = speedSystem;
   }
 
   public create(): void {
-    const roadMaterial = new StandardMaterial("roadMaterial", this.scene);
-
-    roadMaterial.diffuseColor = new Color3(0.15, 0.15, 0.15);
-
-    const grassMaterial = new StandardMaterial("grassMaterial", this.scene);
-
-    grassMaterial.diffuseColor = new Color3(0.1, 0.5, 0.1);
-
-    const laneMaterial = new StandardMaterial("laneMaterial", this.scene);
-
-    laneMaterial.diffuseColor = Color3.White();
-
-    for (let i = 0; i < this.segmentCount; i++) {
-      const zPosition = i * this.segmentLength;
-
-      // -------------------------
-      // ROAD
-      // -------------------------
-
-      const road = MeshBuilder.CreateGround(
-        `road_${i}`,
-        {
-          width: 10,
-          height: this.segmentLength,
-        },
-        this.scene,
-      );
-
-      road.material = roadMaterial;
-
-      road.position = new Vector3(0, 0, zPosition);
-
-      this.roadSegments.push(road);
-
-      // -------------------------
-      // GRASS LEFT
-      // -------------------------
-
-      const grassLeft = MeshBuilder.CreateGround(
-        `grassLeft_${i}`,
-        {
-          width: 20,
-          height: this.segmentLength,
-        },
-        this.scene,
-      );
-
-      grassLeft.material = grassMaterial;
-
-      grassLeft.position = new Vector3(-15, -0.01, zPosition);
-
-      this.grassSegments.push(grassLeft);
-
-      // -------------------------
-      // GRASS RIGHT
-      // -------------------------
-
-      const grassRight = MeshBuilder.CreateGround(
-        `grassRight_${i}`,
-        {
-          width: 20,
-          height: this.segmentLength,
-        },
-        this.scene,
-      );
-
-      grassRight.material = grassMaterial;
-
-      grassRight.position = new Vector3(15, -0.01, zPosition);
-
-      this.grassSegments.push(grassRight);
-
-      // -------------------------
-      // LINHAS DA PISTA
-      // -------------------------
-
-      const leftLane = this.createLaneMarker(`leftLane_${i}`);
-
-      leftLane.material = laneMaterial;
-
-      leftLane.position = new Vector3(-1, 0.03, zPosition);
-
-      this.laneMarkers.push(leftLane);
-
-      const rightLane = this.createLaneMarker(`rightLane_${i}`);
-
-      rightLane.material = laneMaterial;
-
-      rightLane.position = new Vector3(1, 0.03, zPosition);
-
-      this.laneMarkers.push(rightLane);
+    // Cria os blocos iniciais posicionados um na frente do outro no eixo Z
+    for (let i = 0; i < this.totalSegments; i++) {
+      const segment = this.createRoadSegment(`road_seg_${i}`);
+      segment.position.z = i * this.segmentLength;
+      this.segments.push(segment);
     }
   }
 
-  public update(deltaTime: number): void {
-    for (const road of this.roadSegments) {
-      this.moveSegment(road, deltaTime);
-    }
+  private createRoadSegment(name: string): Mesh {
+    // Nó container pai do segmento
+    const segmentParent = new Mesh(name, this.scene);
 
-    for (const grass of this.grassSegments) {
-      this.moveSegment(grass, deltaTime);
-    }
+    // 1. O Asfalto (Base)
+    const roadMat = new StandardMaterial(`${name}_roadMat`, this.scene);
+    roadMat.diffuseColor = new Color3(0.22, 0.18, 0.26);
+    roadMat.specularColor = Color3.Black();
 
-    for (const lane of this.laneMarkers) {
-      this.moveSegment(lane, deltaTime);
-    }
-  }
-
-  public dispose(): void {
-    for (const road of this.roadSegments) {
-      road.dispose();
-    }
-
-    for (const grass of this.grassSegments) {
-      grass.dispose();
-    }
-
-    for (const lane of this.laneMarkers) {
-      lane.dispose();
-    }
-
-    this.roadSegments = [];
-    this.grassSegments = [];
-    this.laneMarkers = [];
-  }
-
-  private moveSegment(segment: Mesh, deltaTime: number): void {
-    segment.position.z -= this.speedSystem.getSpeed() * deltaTime;
-
-    if (segment.position.z < -this.segmentLength) {
-      segment.position.z += this.segmentLength * this.segmentCount;
-    }
-  }
-
-  private createLaneMarker(name: string): Mesh {
-    return MeshBuilder.CreateBox(
-      name,
+    const roadMesh = MeshBuilder.CreatePlane(
+      `${name}_asphalt`,
       {
-        width: 0.1,
-        height: 0.05,
+        width: this.roadWidth,
+        height: this.segmentLength,
+      },
+      this.scene,
+    );
+    roadMesh.rotation.x = Math.PI / 2;
+    roadMesh.material = roadMat;
+    roadMesh.parent = segmentParent;
+
+    // 2. As Calçadas Laterais Elevadas
+    const sidewalkMat = new StandardMaterial(`${name}_sidewalkMat`, this.scene);
+    sidewalkMat.diffuseColor = new Color3(0.48, 0.44, 0.52);
+    sidewalkMat.specularColor = Color3.Black();
+
+    const sidewalkW = 2.5;
+    const sidewalkH = 0.2;
+
+    // Calçada Esquerda
+    const leftSidewalk = MeshBuilder.CreateBox(
+      `${name}_leftWalk`,
+      {
+        width: sidewalkW,
+        height: sidewalkH,
         depth: this.segmentLength,
       },
       this.scene,
     );
+    leftSidewalk.position.x = -(this.roadWidth / 2 + sidewalkW / 2);
+    leftSidewalk.position.y = sidewalkH / 2;
+    leftSidewalk.material = sidewalkMat;
+    leftSidewalk.parent = segmentParent;
+
+    // Calçada Direita
+    const rightSidewalk = MeshBuilder.CreateBox(
+      `${name}_rightWalk`,
+      {
+        width: sidewalkW,
+        height: sidewalkH,
+        depth: this.segmentLength,
+      },
+      this.scene,
+    );
+    rightSidewalk.position.x = this.roadWidth / 2 + sidewalkW / 2;
+    rightSidewalk.position.y = sidewalkH / 2;
+    rightSidewalk.material = sidewalkMat;
+    rightSidewalk.parent = segmentParent;
+
+    // ==========================================
+    // NOVA PARTE: NOVO GRAMADO LATERAL (ÁRVORES/PRÉDIOS)
+    // ==========================================
+    const grassMat = new StandardMaterial(`${name}_grassMat`, this.scene);
+    // Um tom de verde escuro/oliva que combina com o estilo minimalista e por do sol
+    grassMat.diffuseColor = new Color3(0.15, 0.35, 0.15);
+    grassMat.specularColor = Color3.Black();
+
+    const grassWidth = 50.0; // Largura grande o suficiente para cobrir até onde a câmera enxerga nas laterais
+
+    // Gramado Esquerdo (Fica logo após a calçada esquerda)
+    const leftGrass = MeshBuilder.CreatePlane(
+      `${name}_leftGrass`,
+      {
+        width: grassWidth,
+        height: this.segmentLength,
+      },
+      this.scene,
+    );
+    leftGrass.rotation.x = Math.PI / 2;
+    // Posiciona exatamente colado na borda externa da calçada esquerda
+    leftGrass.position.x = -(this.roadWidth / 2 + sidewalkW + grassWidth / 2);
+    leftGrass.position.y = 0.01; // No nível do asfalto, criando o degrau com a calçada
+    leftGrass.material = grassMat;
+    leftGrass.parent = segmentParent;
+
+    // Gramado Direito (Fica logo após a calçada direita)
+    const rightGrass = MeshBuilder.CreatePlane(
+      `${name}_rightGrass`,
+      {
+        width: grassWidth,
+        height: this.segmentLength,
+      },
+      this.scene,
+    );
+    rightGrass.rotation.x = Math.PI / 2;
+    // Posiciona exatamente colado na borda externa da calçada direita
+    rightGrass.position.x = this.roadWidth / 2 + sidewalkW + grassWidth / 2;
+    rightGrass.position.y = 0.01;
+    rightGrass.material = grassMat;
+    rightGrass.parent = segmentParent;
+    // ==========================================
+
+    // 3. Linhas Divisórias de Pista
+    const lineMat = new StandardMaterial(`${name}_lineMat`, this.scene);
+    lineMat.diffuseColor = new Color3(0.9, 0.9, 0.95);
+    lineMat.specularColor = Color3.Black();
+
+    const linePositionsX = [-1.0, 1.0];
+    linePositionsX.forEach((xPos, idx) => {
+      const line = MeshBuilder.CreatePlane(
+        `${name}_line_${idx}`,
+        {
+          width: 0.12,
+          height: this.segmentLength,
+        },
+        this.scene,
+      );
+      line.rotation.x = Math.PI / 2;
+      line.position.x = xPos;
+      line.position.y = 0.01;
+      line.material = lineMat;
+      line.parent = segmentParent;
+    });
+
+    return segmentParent;
+  }
+
+  /**
+   * Move os segmentos continuamente e faz a reciclagem infinita
+   */
+  public update(deltaTime: number): void {
+    const speed = this.speedSystem.getSpeed();
+    const movement = speed * deltaTime;
+
+    for (const segment of this.segments) {
+      // Move a estrada no sentido oposto ao movimento do carro (ilusão de corrida)
+      segment.position.z -= movement;
+
+      // Se o bloco passou completamente para trás da visão da câmera
+      if (segment.position.z < -this.segmentLength) {
+        // Encontra a posição Z atual do bloco mais distante na frente
+        let maxZ = 0;
+        for (const s of this.segments) {
+          if (s.position.z > maxZ) {
+            maxZ = s.position.z;
+          }
+        }
+        // Reposiciona o bloco que ficou para trás na ponta final da fila (Padrão Recycle)
+        segment.position.z = maxZ + this.segmentLength;
+      }
+    }
+  }
+
+  public dispose(): void {
+    for (const segment of this.segments) {
+      segment.dispose(false, true);
+    }
+    this.segments = [];
   }
 }

@@ -1,12 +1,19 @@
-import { Engine, HemisphericLight, Scene, Vector3 } from "@babylonjs/core";
+import {
+  Color3,
+  Engine,
+  HemisphericLight,
+  Layer,
+  Scene,
+  Vector3,
+} from "@babylonjs/core";
 
-import { SceneLoader } from "@babylonjs/core";
 import "@babylonjs/loaders";
 import { CameraController } from "../controllers/CameraController";
 import { CarEntity } from "../entities/CarEntity";
 import { RoadEntity } from "../entities/RoadEntity";
 import type { Updatable } from "../interfaces/Updatable";
 import { GameStateManager } from "../managers/GameStateManager";
+import { CitySystem } from "../systems/CitySystem.ts";
 import { CoinSystem } from "../systems/CoinSystem.ts";
 import { CoinWallet } from "../systems/CoinWallet.ts";
 import { HighScoreSystem } from "../systems/HighScoreSystem.ts";
@@ -26,6 +33,7 @@ export class RaceScene extends BaseScene {
   private scoreSystem?: ScoreSystem;
   private spawnSystem?: SpawnSystem;
   private coinSystem?: CoinSystem;
+  private citySystem!: CitySystem;
 
   private readonly highScoreSystem = new HighScoreSystem();
   private readonly coinWallet = new CoinWallet();
@@ -43,13 +51,8 @@ export class RaceScene extends BaseScene {
     this.scene = new Scene(this.engine);
   }
 
-  // -------------------------
-  // INPUTS
-  // -------------------------
-
   private handleKeyDown = (event: KeyboardEvent): void => {
     if (!this.car) return;
-
     if (!this.gameStateManager.isPlaying()) return;
 
     switch (event.key) {
@@ -69,25 +72,20 @@ export class RaceScene extends BaseScene {
 
   private handleRestart = (event: KeyboardEvent): void => {
     if (event.key !== "r" && event.key !== "R") return;
-
     if (!this.gameStateManager.isGameOver()) return;
 
     this.resetGame();
   };
 
-  // -------------------------
-  // CREATE
-  // -------------------------
-
   public async create(): Promise<void> {
     this.gameStateManager.setState(GameState.MENU);
 
     this.gameUI.showMenu();
+    this.createEnvironment(); // Configura o céu, neblina e luzes antes dos elementos
     this.createRoad();
     this.createCar();
-    this.createLight();
 
-    await this.loadTestBuilding();
+    await this.createCitySystem();
 
     this.registerEventListeners();
 
@@ -100,61 +98,42 @@ export class RaceScene extends BaseScene {
       this.startGame();
     });
 
-    // IMPORTANTE: iniciar em MENU
     this.gameStateManager.setState(GameState.MENU);
     this.gameUI.showMenu();
   }
 
-  // -------------------------
-  // UPDATE LOOP
-  // -------------------------
-
   public update(deltaTime: number): void {
-    // MENU
-    if (this.gameStateManager.isMenu()) {
+    if (this.gameStateManager.isMenu() || this.gameStateManager.isGameOver()) {
       this.gameUI.updateCoins(this.coinWallet.getCoins());
       this.gameUI.updateHighScore(this.highScoreSystem.getHighScore());
       return;
     }
 
-    // GAME OVER
-    if (this.gameStateManager.isGameOver()) {
-      this.gameUI.updateCoins(this.coinWallet.getCoins());
-      this.gameUI.updateHighScore(this.highScoreSystem.getHighScore());
-      return;
-    }
-
-    // PLAYING
     for (const updatable of this.updatables) {
       updatable.update(deltaTime);
     }
+
+    this.citySystem.update(this.speedSystem.getSpeed() * deltaTime);
 
     this.checkCollision();
     this.checkCoinCollision();
 
     if (this.scoreSystem) {
       const score = this.scoreSystem.getScore();
-
       this.gameUI.updateScore(score);
 
       if (this.spawnSystem) {
         this.spawnSystem.setScore(score);
-
         const spawnInterval = Math.max(1.2, 2 - score * 0.02);
         this.spawnSystem.setSpawnInterval(spawnInterval);
       }
 
       this.speedSystem.setSpeed(15 + score * 0.5);
-
       this.gameUI.updateHighScore(this.highScoreSystem.getHighScore());
     }
 
     this.gameUI.updateCoins(this.coinWallet.getCoins());
   }
-
-  // -------------------------
-  // GAME FLOW
-  // -------------------------
 
   private startGame(): void {
     this.gameStateManager.setState(GameState.PLAYING);
@@ -163,21 +142,14 @@ export class RaceScene extends BaseScene {
 
   private gameOver(): void {
     this.gameStateManager.setState(GameState.GAME_OVER);
-
     this.gameUI.showGameOver();
 
     const score = this.scoreSystem?.getScore() ?? 0;
-
-    const isNewRecord = this.highScoreSystem.update(score);
-
-    if (isNewRecord) {
-      console.log("NEW HIGH SCORE!");
-    }
+    this.highScoreSystem.update(score);
   }
 
   private resetGame(): void {
     this.gameStateManager.setState(GameState.MENU);
-
     this.gameUI.showMenu();
 
     this.scoreSystem?.reset?.();
@@ -185,26 +157,17 @@ export class RaceScene extends BaseScene {
     this.coinSystem?.reset?.();
 
     this.speedSystem.setSpeed(15);
-
-    // Centraliza o carro e a câmera na pista ao resetar
     this.car?.reset();
     this.cameraController?.reset();
   }
-
-  // -------------------------
-  // COLLISIONS
-  // -------------------------
 
   private checkCollision(): void {
     if (!this.car || !this.spawnSystem) return;
 
     const obstacles = this.spawnSystem.getObstacles();
-
     for (const obstacle of obstacles) {
       const sameLane = this.car.getCurrentLane() === obstacle.getCurrentLane();
-
       const obstacleZ = obstacle.getPosition().z;
-
       const collision = sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
 
       if (collision) {
@@ -219,9 +182,7 @@ export class RaceScene extends BaseScene {
 
     for (const coin of this.coinSystem.getCoins()) {
       const sameLane = this.car.getCurrentLane() === coin.getLane();
-
       const z = coin.getPosition()?.z ?? 999;
-
       const collision = sameLane && z <= 1.5 && z >= -1.5;
 
       if (collision) {
@@ -231,9 +192,32 @@ export class RaceScene extends BaseScene {
     }
   }
 
-  // -------------------------
-  // SETUP HELPERS
-  // -------------------------
+  // Substitui a antiga função 'createLight' para englobar todo o clima do jogo
+  private createEnvironment(): void {
+    // 1. Aplica o seu PNG de fundo estático
+    const sunsetLayer = new Layer(
+      "sunsetBackground",
+      "models/Textures/sky_sunset.png",
+      this.scene,
+      true,
+    );
+
+    // Desloca a imagem para cima na tela.
+    // Valores positivos sobem a imagem (ex: 0.1, 0.2). Ajuste esse número se precisar subir mais ou menos.
+    sunsetLayer.offset.y = 0.9;
+
+    // 2. Luz Hemisférica NEUTRA
+    const light = new HemisphericLight(
+      "ambientLight",
+      new Vector3(0, 1, 0),
+      this.scene,
+    );
+    light.diffuse = Color3.White();
+    light.groundColor = new Color3(0.2, 0.2, 0.2);
+
+    // 3. Neblina Desativada para não clarear seus blocos
+    this.scene.fogMode = Scene.FOGMODE_NONE;
+  }
 
   private createRoad(): void {
     this.road = new RoadEntity(this.scene, this.speedSystem);
@@ -247,24 +231,18 @@ export class RaceScene extends BaseScene {
     this.updatables.push(this.car);
   }
 
-  private createLight(): void {
-    new HemisphericLight("light", new Vector3(0, 1, 0), this.scene);
-  }
-
   private registerEventListeners(): void {
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("keydown", this.handleRestart);
   }
 
   private createCameraController(): void {
-    this.cameraController = new CameraController(this.scene, this.car);
-
+    this.cameraController = new CameraController(this.scene, this.car!);
     this.updatables.push(this.cameraController);
   }
 
   private createSpawnSystem(): void {
     this.spawnSystem = new SpawnSystem(this.scene, this.speedSystem);
-
     this.updatables.push(this.spawnSystem);
   }
 
@@ -275,40 +253,18 @@ export class RaceScene extends BaseScene {
 
   private createCoinSystem(): void {
     this.coinSystem = new CoinSystem(this.scene, this.speedSystem);
-
     this.updatables.push(this.coinSystem);
   }
 
   public dispose(): void {
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("keydown", this.handleRestart);
-
     this.car?.dispose();
     this.scene.dispose();
   }
 
-  private async loadTestBuilding(): Promise<void> {
-    try {
-      const result = await SceneLoader.ImportMeshAsync(
-        "",
-        "/models/",
-        "building-type-a.glb",
-        this.scene,
-      );
-
-      result.meshes.forEach((mesh, index) => {
-        console.log(index, mesh.name, "vertices:", mesh.getTotalVertices());
-      });
-
-      const building = result.meshes[1];
-
-      building.position = new Vector3(-10, 1, 20);
-
-      building.scaling = new Vector3(6, 6, 6);
-
-      building.rotate(Vector3.Up(), Math.PI / -2);
-    } catch (error) {
-      console.error(error);
-    }
+  private async createCitySystem(): Promise<void> {
+    this.citySystem = new CitySystem(this.scene);
+    await this.citySystem.initialize();
   }
 }
