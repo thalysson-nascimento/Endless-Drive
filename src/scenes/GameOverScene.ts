@@ -3,7 +3,7 @@ import { BaseScene } from "./BaseScene";
 
 // Estrutura inicial para GameOverScene
 export class GameOverScene extends BaseScene {
-  public scene: Scene;
+  public scene!: Scene;
 
   constructor() {
     super();

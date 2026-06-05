@@ -3,7 +3,7 @@ import { BaseScene } from "./BaseScene";
 
 // Estrutura inicial para MenuScene
 export class MenuScene extends BaseScene {
-  public scene: Scene;
+  public scene!: Scene;
 
   constructor() {
     super();

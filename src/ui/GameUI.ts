@@ -1,9 +1,9 @@
 export class GameUI {
-  private coinsElement: HTMLDivElement;
-  private highScoreElement: HTMLDivElement;
-  private menuElement: HTMLDivElement;
-  private scoreElement: HTMLDivElement;
-  private gameOverElement: HTMLDivElement;
+  private coinsElement!: HTMLDivElement;
+  private highScoreElement!: HTMLDivElement;
+  private menuElement!: HTMLDivElement;
+  private scoreElement!: HTMLDivElement;
+  private gameOverElement!: HTMLDivElement;
 
   constructor() {
     this.createScoreUI();
