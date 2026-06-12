@@ -1,7 +1,9 @@
 import {
   Color3,
+  Mesh,
   MeshBuilder,
   StandardMaterial,
+  Texture,
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
@@ -9,61 +11,67 @@ import {
 import { BaseEntity } from "./BaseEntity";
 
 export class CarEntity extends BaseEntity {
-  /**
-   * Centraliza o carro na pista (lane central)
-   */
-  public reset(): void {
-    this.currentLane = 1;
-    this.updateLanePosition();
-  }
   private root?: TransformNode;
   private currentLane = 1;
   private readonly lanePositions = [-2, 0, 2];
 
+  public reset(): void {
+    this.currentLane = 1;
+    this.updateLanePosition();
+  }
+
   public create(): void {
     this.root = new TransformNode("carRoot", this.scene);
 
-    const material = new StandardMaterial("carMaterial", this.scene);
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // TAMANHO DO CARRO — mexa aqui para redimensionar
+    //   width  = largura do sprite (eixo X, lateral)
+    //   height = altura do sprite (eixo Y, vertical)
+    // Mantenha a proporcao original do PNG para nao distorcer.
+    // Proporcao do car-a.2-5d.png: width / height ~ 0.857
+    //
+    //   Menor  -> width: 1.4,  height: 1.8
+    //   Medio  -> width: 1.8,  height: 2.2  << atual
+    //   Grande -> width: 3.0,  height: 3.5
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const width = 1.5;
+    const height = 1.9;
 
-    material.diffuseColor = new Color3(0.1, 0.3, 1);
-
-    material.specularColor = Color3.White();
-
-    material.specularPower = 64;
-
-    const body = MeshBuilder.CreateBox(
-      "carBody",
-      {
-        width: 1.4,
-        height: 0.5,
-        depth: 2.5,
-      },
+    const plane = MeshBuilder.CreatePlane(
+      "carSprite",
+      { width, height, sideOrientation: Mesh.DOUBLESIDE },
       this.scene,
     );
 
-    body.material = material;
+    // Centro vertical: base do carro em y=0
+    plane.position.y = height / 2;
+    plane.parent = this.root;
 
-    body.position.y = 0.5;
+    plane.rotation.y = 0;
 
-    body.parent = this.root;
+    const mat = new StandardMaterial("carSpriteMat", this.scene);
 
-    const cabin = MeshBuilder.CreateBox(
-      "carCabin",
-      {
-        width: 1,
-        height: 0.5,
-        depth: 1.2,
-      },
+    const tex = new Texture(
+      "/models/assets/car-a.2-5d.png",
       this.scene,
+      false, // noMipmap
+      true, // invertY
+      Texture.TRILINEAR_SAMPLINGMODE,
     );
 
-    cabin.material = material;
+    tex.hasAlpha = true;
 
-    cabin.position.y = 1;
+    mat.diffuseTexture = tex;
+    mat.useAlphaFromDiffuseTexture = true;
 
-    cabin.position.z = -0.2;
+    // emissiveColor branco: ignora a luz da cena, mostra as cores exatas do PNG
+    mat.emissiveColor = new Color3(1, 1, 1);
+    mat.specularColor = new Color3(0, 0, 0);
+    mat.backFaceCulling = false;
+    mat.transparencyMode = StandardMaterial.MATERIAL_ALPHABLEND;
 
-    cabin.parent = this.root;
+    plane.material = mat;
+    plane.isPickable = false;
 
     this.updateLanePosition();
   }
@@ -75,30 +83,19 @@ export class CarEntity extends BaseEntity {
   }
 
   public moveLeft(): void {
-    if (this.currentLane <= 0) {
-      return;
-    }
-
+    if (this.currentLane <= 0) return;
     this.currentLane--;
-
     this.updateLanePosition();
   }
 
   public moveRight(): void {
-    if (this.currentLane >= 2) {
-      return;
-    }
-
+    if (this.currentLane >= 2) return;
     this.currentLane++;
-
     this.updateLanePosition();
   }
 
   public getPosition(): Vector3 {
-    if (!this.root) {
-      return Vector3.Zero();
-    }
-
+    if (!this.root) return Vector3.Zero();
     return this.root.position;
   }
 
@@ -107,11 +104,7 @@ export class CarEntity extends BaseEntity {
   }
 
   private updateLanePosition(): void {
-    if (!this.root) {
-      return;
-    }
-
+    if (!this.root) return;
     this.root.position.x = this.lanePositions[this.currentLane];
-    console.log("Lane:", this.currentLane, "X:", this.root.position.x);
   }
 }

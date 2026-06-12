@@ -5,8 +5,32 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>endless-runner</title>
+    <style>
+      /* Vídeo de fundo do menu — no HTML estático o browser autoriza autoplay muted */
+      #bg-video {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 0;
+        display: none;        /* escondido — GameUI controla quando mostrar */
+        pointer-events: none;
+      }
+    </style>
   </head>
   <body>
+    <!-- Vídeo declarado no HTML: browser respeita autoplay + muted aqui -->
+    <video
+      id="bg-video"
+      src="/models/assets/background-movie.mp4"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+    ></video>
+
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -22,6 +22,7 @@ import { SpawnSystem } from "../systems/SpawnSystem";
 import { SpeedSystem } from "../systems/SpeedSystem";
 import { GameState } from "../types/GameState";
 import { GameUI } from "../ui/GameUI.ts";
+import { LoadingScreen } from "../ui/LoadingScreen.ts";
 import { BaseScene } from "./BaseScene";
 
 export class RaceScene extends BaseScene {
@@ -43,10 +44,10 @@ export class RaceScene extends BaseScene {
   private readonly speedSystem = new SpeedSystem();
   private readonly gameStateManager = new GameStateManager();
   private readonly gameUI = new GameUI();
+  private readonly loadingScreen = new LoadingScreen();
 
   constructor(engine: Engine) {
     super();
-
     this.engine = engine;
     this.scene = new Scene(this.engine);
   }
@@ -61,7 +62,6 @@ export class RaceScene extends BaseScene {
       case "A":
         this.car.moveLeft();
         break;
-
       case "ArrowRight":
       case "d":
       case "D":
@@ -70,37 +70,42 @@ export class RaceScene extends BaseScene {
     }
   };
 
-  private handleRestart = (event: KeyboardEvent): void => {
-    if (event.key !== "r" && event.key !== "R") return;
-    if (!this.gameStateManager.isGameOver()) return;
-
-    this.resetGame();
-  };
-
   public async create(): Promise<void> {
-    this.gameStateManager.setState(GameState.MENU);
+    this.loadingScreen.mount();
+    this.loadingScreen.setProgress(0.05);
 
-    this.gameUI.showMenu();
-    this.createEnvironment(); // Configura o céu, neblina e luzes antes dos elementos
+    this.createEnvironment();
+    this.loadingScreen.setProgress(0.15);
+
     this.createRoad();
+    this.loadingScreen.setProgress(0.30);
+
     this.createCar();
+    this.loadingScreen.setProgress(0.40);
 
     await this.createCitySystem();
+    this.loadingScreen.setProgress(0.75);
 
     this.registerEventListeners();
-
     this.createCameraController();
     this.createSpawnSystem();
     this.createScoreSystem();
     this.createCoinSystem();
+    this.loadingScreen.setProgress(1.0);
 
-    this.gameUI.bindMenuEvents(() => {
-      this.startGame();
-    });
+    await this.wait(300);
+    await this.loadingScreen.dismiss();
 
     this.gameStateManager.setState(GameState.MENU);
     this.gameUI.showMenu();
+    this.gameUI.bindMenuEvents(() => this.startGame());
   }
+
+  private wait(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // ── GAME FLOW ─────────────────────────────────────────────────────────
 
   public update(deltaTime: number): void {
     if (this.gameStateManager.isMenu() || this.gameStateManager.isGameOver()) {
@@ -114,7 +119,6 @@ export class RaceScene extends BaseScene {
     }
 
     this.citySystem.update(this.speedSystem.getSpeed() * deltaTime);
-
     this.checkCollision();
     this.checkCoinCollision();
 
@@ -124,8 +128,7 @@ export class RaceScene extends BaseScene {
 
       if (this.spawnSystem) {
         this.spawnSystem.setScore(score);
-        const spawnInterval = Math.max(1.2, 2 - score * 0.02);
-        this.spawnSystem.setSpawnInterval(spawnInterval);
+        this.spawnSystem.setSpawnInterval(Math.max(1.2, 2 - score * 0.02));
       }
 
       this.speedSystem.setSpeed(15 + score * 0.5);
@@ -142,80 +145,71 @@ export class RaceScene extends BaseScene {
 
   private gameOver(): void {
     this.gameStateManager.setState(GameState.GAME_OVER);
-    this.gameUI.showGameOver();
-
     const score = this.scoreSystem?.getScore() ?? 0;
     this.highScoreSystem.update(score);
+    // Passa o score para o GameUI verificar se entra no ranking
+    this.gameUI.showGameOver(
+      score,
+      () => this.resetGame(false),
+      () => this.resetGame(true),
+    );
   }
 
-  private resetGame(): void {
-    this.gameStateManager.setState(GameState.MENU);
-    this.gameUI.showMenu();
-
+  private resetGame(goToMenu: boolean): void {
     this.scoreSystem?.reset?.();
     this.spawnSystem?.reset?.();
     this.coinSystem?.reset?.();
-
     this.speedSystem.setSpeed(15);
     this.car?.reset();
     this.cameraController?.reset();
+
+    if (goToMenu) {
+      this.gameStateManager.setState(GameState.MENU);
+      this.gameUI.showMenu();
+      this.gameUI.bindMenuEvents(() => this.startGame());
+    } else {
+      this.gameStateManager.setState(GameState.PLAYING);
+      this.gameUI.setState("PLAYING");
+    }
   }
+
+  // ── COLISÕES ──────────────────────────────────────────────────────────
 
   private checkCollision(): void {
     if (!this.car || !this.spawnSystem) return;
-
-    const obstacles = this.spawnSystem.getObstacles();
-    for (const obstacle of obstacles) {
+    for (const obstacle of this.spawnSystem.getObstacles()) {
       const sameLane = this.car.getCurrentLane() === obstacle.getCurrentLane();
-      const obstacleZ = obstacle.getPosition().z;
-      const collision = sameLane && obstacleZ <= 1.5 && obstacleZ >= -1.5;
-
-      if (collision) {
-        this.gameOver();
-        return;
-      }
+      const z = obstacle.getPosition().z;
+      if (sameLane && z <= 1.5 && z >= -1.5) { this.gameOver(); return; }
     }
   }
 
   private checkCoinCollision(): void {
     if (!this.car || !this.coinSystem) return;
-
     for (const coin of this.coinSystem.getCoins()) {
       const sameLane = this.car.getCurrentLane() === coin.getLane();
       const z = coin.getPosition()?.z ?? 999;
-      const collision = sameLane && z <= 1.5 && z >= -1.5;
-
-      if (collision) {
+      if (sameLane && z <= 1.5 && z >= -1.5) {
         coin.collect();
         this.coinWallet.add(1);
       }
     }
   }
 
-  // Substitui a antiga função 'createLight' para englobar todo o clima do jogo
+  // ── CRIAÇÃO ───────────────────────────────────────────────────────────
+
   private createEnvironment(): void {
-    // 1. Aplica o seu PNG de fundo estático
     const sunsetLayer = new Layer(
       "sunsetBackground",
       "models/Textures/sky_sunset.png",
       this.scene,
       true,
     );
-
-    // Desloca a imagem para cima na tela.
-    // Valores positivos sobem a imagem (ex: 0.1, 0.2). Ajuste esse número se precisar subir mais ou menos.
     sunsetLayer.offset.y = 0.9;
 
-    // 2. Luz Hemisférica NEUTRA
-    const light = new HemisphericLight(
-      "ambientLight",
-      new Vector3(0, 1, 0),
-      this.scene,
-    );
+    const light = new HemisphericLight("ambientLight", new Vector3(0, 1, 0), this.scene);
     light.diffuse = Color3.White();
     light.groundColor = new Color3(0.2, 0.2, 0.2);
-
-    // 3. Neblina Desativada para não clarear seus blocos
     this.scene.fogMode = Scene.FOGMODE_NONE;
   }
 
@@ -233,7 +227,6 @@ export class RaceScene extends BaseScene {
 
   private registerEventListeners(): void {
     window.addEventListener("keydown", this.handleKeyDown);
-    window.addEventListener("keydown", this.handleRestart);
   }
 
   private createCameraController(): void {
@@ -256,15 +249,14 @@ export class RaceScene extends BaseScene {
     this.updatables.push(this.coinSystem);
   }
 
-  public dispose(): void {
-    window.removeEventListener("keydown", this.handleKeyDown);
-    window.removeEventListener("keydown", this.handleRestart);
-    this.car?.dispose();
-    this.scene.dispose();
-  }
-
   private async createCitySystem(): Promise<void> {
     this.citySystem = new CitySystem(this.scene);
     await this.citySystem.initialize();
+  }
+
+  public dispose(): void {
+    window.removeEventListener("keydown", this.handleKeyDown);
+    this.car?.dispose();
+    this.scene.dispose();
   }
 }
